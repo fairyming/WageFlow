@@ -10,6 +10,7 @@ WageFlow is a native macOS menu-bar salary dashboard using SwiftUI and AppKit, w
 - `scripts/build-app.sh`: app bundle generation and ad hoc signing.
 - `.github/workflows/release.yml`: universal builds, CI artifacts, and tag-triggered releases.
 - `resource/`: rendered interface previews referenced by README.
+- `resource/AppIcon.png` and `resource/AppIcon.icns`: committed app icons; packaging copies the ICNS without regenerating it. Use `sh scripts/render-icon.sh` only when changing the icon design.
 - `README.md`: setup, supported behavior, and calculation rules.
 
 Keep calculation and synchronization logic outside views. Use WageFlow consistently for the application, executable, and user-facing branding.

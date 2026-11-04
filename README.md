@@ -1,5 +1,7 @@
 # WageFlow
 
+<img src="resource/AppIcon.png" alt="WageFlow 应用图标" width="96">
+
 你的每一秒，都算数
 
 ## 功能
@@ -63,6 +65,8 @@ git push origin v1.0.0
 ```
 
 推荐 `v1.2.0` 格式；含 `-` 的 tag 为预发布。App 版本取 tag 三段数字，其他构建默认 `1.0.0`，构建号取 Actions 运行编号。无需额外发布密钥。
+
+发布失败会自动重试。手动运行工作流时填写 `release_tag`（如 `v0.0.1`），可重新构建并补发已有 tag 的 Release；留空仅构建。
 
 App 使用临时签名，未经过 Apple 公证。确认来源可信后，可通过「系统设置 → 隐私与安全性」允许打开。
 
