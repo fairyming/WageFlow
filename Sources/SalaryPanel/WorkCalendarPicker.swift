@@ -45,8 +45,16 @@ struct WorkCalendarPicker: View {
             if let workMonth {
                 calendarGrid(workMonth)
                 if workMonth.isEstimated {
-                    Label("暂按周一至周五计算", systemImage: "calendar.badge.exclamationmark")
-                        .font(.caption).foregroundStyle(.orange)
+                    HStack(spacing: 8) {
+                        if holidays.loading.contains(year) {
+                            ProgressView().controlSize(.small)
+                        }
+                        Label(holidays.loading.contains(year)
+                              ? "正在获取节假日，暂按周一至周五计算"
+                              : "暂无可用节假日数据，暂按周一至周五计算",
+                              systemImage: "calendar.badge.exclamationmark")
+                            .font(.caption).foregroundStyle(.orange)
+                    }
                 }
                 HStack(spacing: 12) {
                     legend("工作日", color: tint)

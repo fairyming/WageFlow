@@ -36,7 +36,7 @@ Cover lunch boundaries, rest days, adjusted working weekends, month/year changes
 
 ## Calendar & Privacy Rules
 
-Refresh holiday data monthly, preserve manual overrides, and retain GitHub → jsDelivr → Fastly fallback order. Uncached years fall back to weekdays after retrieval fails. Keep salary settings local; never commit personal data or credentials.
+Refresh holiday data monthly, preserve manual overrides, and retain GitHub → jsDelivr → Fastly fallback order. Uncached years immediately display estimated weekdays while fetching; retain that estimate on failure. Empty holiday arrays are unavailable data, not verified calendars. Keep salary settings local; never commit personal data or credentials.
 
 ## Commit & Pull Request Guidelines
 

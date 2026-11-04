@@ -23,7 +23,7 @@ public final class HolidayCalendarStore: ObservableObject {
 
     public func monthCalendar(settings: WorkSettings, year: Int, month: Int) -> WorkMonth? {
         settings.monthCalendar(year: year, month: month, holidays: years[year],
-                               fallbackToWeekdays: fallbackYears.contains(year))
+                               fallbackToWeekdays: true)
     }
 
     public init(

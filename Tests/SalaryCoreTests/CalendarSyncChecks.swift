@@ -10,9 +10,11 @@ private final class SyncFixture {
     var failedHosts: Set<String> = []
     var invalidHosts: Set<String> = []
     var requests: [URLRequest] = []
+    var onRequest: (() -> Void)?
 
     func download(_ request: URLRequest) async throws -> (Data, URLResponse) {
         requests.append(request)
+        onRequest?()
         if offline || failedHosts.contains(request.url!.host!) { throw URLError(.notConnectedToInternet) }
         let body = invalidHosts.contains(request.url!.host!) ? "not JSON" : json
         return (Data(body.utf8), HTTPURLResponse(url: request.url!, statusCode: status,
@@ -27,6 +29,7 @@ private func localDate(_ year: Int, _ month: Int, _ day: Int, _ hour: Int = 12, 
 
 @MainActor
 func checkCalendarSync() async {
+    await checkUnpublishedYearCalendar()
     let suite = "salary-calendar-checks-" + UUID().uuidString
     let defaults = UserDefaults(suiteName: suite)!
     defer { defaults.removePersistentDomain(forName: suite) }
@@ -132,4 +135,46 @@ func checkCalendarSync() async {
     fixture.invalidHosts.removeAll()
     await store.loadCurrentYear(force: true)
     precondition(fixture.requests.count == 1, "A successful primary request must not contact backups")
+}
+
+@MainActor
+private func checkUnpublishedYearCalendar() async {
+    let suite = "salary-unpublished-year-checks-" + UUID().uuidString
+    let defaults = UserDefaults(suiteName: suite)!
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let fixture = SyncFixture()
+    fixture.json = #"{"year":2027,"papers":[],"days":[]}"#
+    let store = HolidayCalendarStore(defaults: defaults, now: { fixture.date }, download: fixture.download)
+    var settings = WorkSettings()
+    settings.workdayOverrides["2027-01-04"] = false
+    let initial = store.monthCalendar(settings: settings, year: 2027, month: 1)!
+    precondition(initial.isEstimated && initial.days.count == 31 && initial.workdays == 20,
+                 "Uncached years must display an editable calendar before any request completes")
+    fixture.onRequest = {
+        let pending = store.monthCalendar(settings: settings, year: 2027, month: 1)!
+        precondition(store.loading.contains(2027) && pending.isEstimated && pending.workdays == 20,
+                     "The calendar must remain visible while trying each source")
+    }
+    await store.loadYear(2027)
+    fixture.onRequest = nil
+    precondition(fixture.requests.count == 3 && store.errors[2027] != nil)
+    precondition(store.years[2027] == nil && defaults.data(forKey: "holiday-calendar-2027") == nil,
+                 "HTTP 200 with empty days is unavailable data, not a confirmed holiday calendar")
+    precondition(store.monthCalendar(settings: settings, year: 2027, month: 1)?.workdays == 20)
+    await store.loadYear(2027)
+    precondition(fixture.requests.count == 3, "Keep the retry delay for unpublished calendars")
+
+    let restarted = HolidayCalendarStore(defaults: defaults, now: { fixture.date }, download: fixture.download)
+    await restarted.loadYear(2027)
+    precondition(fixture.requests.count == 3)
+    precondition(restarted.monthCalendar(settings: settings, year: 2027, month: 1)?.isEstimated == true,
+                 "Restarting during the retry delay must not leave an empty calendar")
+
+    fixture.json = #"{"year":2027,"days":[{"name":"测试假期","date":"2027-01-01","isOffDay":true},{"name":"测试补班","date":"2027-01-02","isOffDay":false}]}"#
+    await restarted.loadYear(2027, force: true)
+    let updated = restarted.monthCalendar(settings: settings, year: 2027, month: 1)!
+    precondition(!updated.isEstimated && restarted.errors[2027] == nil)
+    precondition(!updated.days[0].isWorkday && updated.days[1].isWorkday)
+    precondition(!updated.days[3].isWorkday && updated.days[3].isCustomized,
+                 "Fetching published holidays must preserve manual edits")
 }
