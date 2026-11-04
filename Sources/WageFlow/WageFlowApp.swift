@@ -5,7 +5,7 @@ import Combine
 
 @MainActor
 final class SalaryStore: ObservableObject {
-    let holidays = HolidayCalendarStore()
+    let holidays: HolidayCalendarStore
     private var calendarSubscription: AnyCancellable?
     @Published var settings: WorkSettings {
         didSet {
@@ -15,12 +15,26 @@ final class SalaryStore: ObservableObject {
         }
     }
     init() {
+        Self.migratePreferences(to: UserDefaults.standard)
+        holidays = HolidayCalendarStore()
         if let data = UserDefaults.standard.data(forKey: "workSettings"),
            let decoded = try? JSONDecoder().decode(WorkSettings.self, from: data), decoded.valid {
             settings = decoded
         } else { settings = WorkSettings() }
         calendarSubscription = holidays.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
+        }
+    }
+
+    private static func migratePreferences(to defaults: UserDefaults) {
+        // Preserve salary settings and validated calendar caches after renaming.
+        for domain in ["local.salary-panel.app", "SalaryPanel"] {
+            for (key, value) in defaults.persistentDomain(forName: domain) ?? [:]
+                where key == "workSettings" || key.hasPrefix("holiday-") {
+                if defaults.object(forKey: key) == nil {
+                    defaults.set(value, forKey: key)
+                }
+            }
         }
     }
     var calculationSettings: WorkSettings {
@@ -60,7 +74,7 @@ final class SalaryStore: ObservableObject {
 }
 
 @main
-enum SalaryPanelApp {
+enum WageFlowApp {
     @MainActor
     static func main() {
         let application = NSApplication.shared
@@ -87,7 +101,7 @@ final class SalaryAppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Keep the item alive and use a native image instead of a TimelineView label.
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        item.autosaveName = "SalaryPanelStatusItem"
+        item.autosaveName = "WageFlowStatusItem"
         item.isVisible = true
         if let button = item.button {
             let image = NSImage(systemSymbolName: "yensign.circle.fill", accessibilityDescription: "WageFlow")
@@ -175,7 +189,7 @@ final class SalaryAppDelegate: NSObject, NSApplicationDelegate {
             window.isReleasedWhenClosed = false
             window.setContentSize(NSSize(width: 560, height: 650))
             window.contentMinSize = NSSize(width: 540, height: 600)
-            window.setFrameAutosaveName("SalaryPanelSettings")
+            window.setFrameAutosaveName("WageFlowSettings")
             window.center()
             settingsWindow = window
         }

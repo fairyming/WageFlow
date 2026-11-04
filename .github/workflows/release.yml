@@ -1,0 +1,111 @@
+name: Build and Release macOS App
+
+on:
+  push:
+    branches: [main]
+    tags: ['*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build universal macOS app
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set app version
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+
+          version = "1.0.0"
+          if os.environ["REF_TYPE"] == "tag":
+              match = re.fullmatch(r"v?([0-9]+\.[0-9]+\.[0-9]+)(?:[-+].+)?", os.environ["REF_NAME"])
+              if match:
+                  version = match.group(1)
+          with open(os.environ["GITHUB_ENV"], "a") as output:
+              output.write(f"WAGEFLOW_VERSION={version}\n")
+              output.write(f"WAGEFLOW_BUILD_NUMBER={os.environ['GITHUB_RUN_NUMBER']}\n")
+          PY
+
+      - name: Run core checks
+        run: swift run SalaryCoreChecks
+
+      - name: Build and sign app
+        run: sh scripts/build-app.sh --arch arm64 --arch x86_64
+
+      - name: Verify both architectures
+        run: |
+          architectures="$(lipo -archs dist/WageFlow.app/Contents/MacOS/WageFlow)"
+          for architecture in arm64 x86_64; do
+            if [[ " $architectures " != *" $architecture "* ]]; then
+              echo "Missing architecture: $architecture"
+              exit 1
+            fi
+          done
+
+      - name: Package app
+        working-directory: dist
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent WageFlow.app WageFlow-macos-universal.zip
+          shasum -a 256 WageFlow-macos-universal.zip > WageFlow-macos-universal.zip.sha256
+
+      - name: Upload app archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: WageFlow-macos-universal
+          path: |
+            dist/WageFlow-macos-universal.zip
+            dist/WageFlow-macos-universal.zip.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish tagged release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download app archive
+        uses: actions/download-artifact@v4
+        with:
+          name: WageFlow-macos-universal
+          path: dist
+
+      - name: Create release and upload assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          assets=(dist/WageFlow-macos-universal.zip dist/WageFlow-macos-universal.zip.sha256)
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
+          else
+            options=()
+            if [[ "$RELEASE_TAG" == *-* ]]; then
+              options+=(--prerelease)
+            fi
+            gh release create "$RELEASE_TAG" "${assets[@]}" \
+              --verify-tag --generate-notes --title "WageFlow $RELEASE_TAG" \
+              --notes "macOS 13+ · Apple Silicon / Intel 通用版本。应用采用临时签名，尚未进行 Apple 开发者签名与公证。" \
+              "${options[@]}"
+          fi

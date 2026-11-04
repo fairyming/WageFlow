@@ -76,8 +76,9 @@ with tempfile.TemporaryDirectory(prefix="wageflow-previews-") as temp:
         text = source.read_text().replace("import SalaryCore\n", "")
         text = text.replace(r"@Environment(\.accessibilityReduceMotion) private var reduceMotion",
                             "private let reduceMotion = true")
-        if source.name == "SalaryPanelApp.swift":
-            text = text.replace("@main\nenum SalaryPanelApp", "enum SalaryPanelApp")
+        if source.name == "WageFlowApp.swift":
+            text = text.replace("@main\nenum WageFlowApp", "enum WageFlowApp")
+            text = text.replace("Self.migratePreferences(to: UserDefaults.standard)", "")
             text = text.replace("HolidayCalendarStore()", "HolidayCalendarStore(defaults: previewDefaults, now: { previewDate })")
             text = text.replace("UserDefaults.standard", "previewDefaults")
             text = text.replace("context.date", "previewDate")

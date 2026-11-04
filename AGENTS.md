@@ -4,20 +4,21 @@
 
 WageFlow is a native macOS menu-bar salary dashboard using SwiftUI and AppKit, with no third-party dependencies. Swift Package Manager requires Swift 5.9 or later; deployment targets macOS 13+.
 
-- `Sources/SalaryPanel/`: application lifecycle, status item, dashboard, settings, and calendar picker.
+- `Sources/WageFlow/`: application lifecycle, status item, dashboard, settings, and calendar picker.
 - `Sources/SalaryCore/`: salary calculations, holiday models, synchronization, and local caching.
 - `Tests/SalaryCoreTests/`: executable checks with synthetic fixtures.
 - `scripts/build-app.sh`: app bundle generation and ad hoc signing.
+- `.github/workflows/release.yml`: universal builds, CI artifacts, and tag-triggered releases.
 - `resource/`: rendered interface previews referenced by README.
 - `README.md`: setup, supported behavior, and calculation rules.
 
-Keep calculation and synchronization logic outside views. User-facing branding is WageFlow; the executable remains `SalaryPanel` for compatibility.
+Keep calculation and synchronization logic outside views. Use WageFlow consistently for the application, executable, and user-facing branding.
 
 ## Build, Test, and Development Commands
 
 Install Apple Command Line Tools, then run from the repository root:
 
-- `swift run SalaryPanel`: launch the menu-bar app; keep the terminal process running.
+- `swift run WageFlow`: launch the menu-bar app; keep the terminal process running.
 - `swift build`: compile all targets for development.
 - `swift run SalaryCoreChecks`: run the complete behavior checks.
 - `sh scripts/build-app.sh`: build release binaries into `dist/WageFlow.app` and sign locally.

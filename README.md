@@ -1,89 +1,71 @@
 # WageFlow
 
-*Watch every second pay off.*
+你的每一秒，都算数
 
-原生 SwiftUI macOS 菜单栏工资看板，支持 macOS 13 及以上，无第三方依赖。应用名称为 WageFlow；内部开发可执行目标保留为 `SalaryPanel`，已有配置和本机缓存继续沿用。
+## 功能
 
-## 界面预览
+- 实时收入、每秒收益动画、上班进度和下班倒计时。
+- 月薪 / 日薪 / 时薪，支持午休扣除。
+- 自动计薪日历，可手动修改日期、重置并保存。
+- 休息日专属看板，咖啡热气和太阳呼吸动画。
+- 三种配色、金额隐藏及独立桌面看板。
 
-以下图片由应用实际 SwiftUI 视图渲染，使用固定日期和演示数据，不含个人薪资信息；静态图片不展示动态效果。
+## 预览
 
-### 工作日与休息日
+实际界面渲染，使用演示数据。
 
-工作日展示实时收入、每秒收益、上班进度和下班倒计时；休息日切换为咖啡与阳光主题，配有热气轻飘和太阳呼吸动画。
-
-| 工作日看板 | 休息日看板 |
+| 工作日 | 休息日 |
 | --- | --- |
-| ![工作日看板：今日收入、每秒收益与下班倒计时](resource/dashboard-workday.png) | ![休息日看板：咖啡、阳光与休息提示](resource/dashboard-restday.png) |
-
-### 薪资与个性化设置
-
-选择月薪、日薪或时薪，查看计算预览；调整主题颜色和金额隐私偏好。
+| ![工作日看板](resource/dashboard-workday.png) | ![休息日看板](resource/dashboard-restday.png) |
 
 | 薪资计算 | 外观与隐私 |
 | --- | --- |
-| ![薪资计算设置及每日收入预览](resource/settings-salary.png) | ![主题配色和隐藏金额设置](resource/settings-appearance.png) |
+| ![薪资计算](resource/settings-salary.png) | ![外观与隐私](resource/settings-appearance.png) |
 
-### 工作作息与计薪日历
+<details>
+<summary>工作作息与计薪日历</summary>
 
-自动获取工作日历，点击日期即可修改工作 / 休息安排，并设置上下班和午休时间。
+<img src="resource/settings-schedule.png" alt="工作作息与计薪日历" width="560">
 
-<img src="resource/settings-schedule.png" alt="工作作息设置：计薪日历、常用班次及午休时间" width="560">
+</details>
 
-在 macOS 上运行 `python3 scripts/render-previews.py` 可重新生成 `resource/` 中的 PNG 图片。脚本复用现有视图，在临时目录编译，使用独立的演示配置，不修改应用源码或个人设置。
+## 开发
 
-## 运行
-
-安装 Apple Command Line Tools（`xcode-select --install`），然后运行：
-
-```sh
-swift run SalaryPanel
-```
-
-点击菜单栏右侧的人民币图标打开看板，鼠标悬停可查看当前收入。点击看板右上角齿轮打开独立设置窗口，填写真实薪资、作息，并按需调整工作日历；初始数值仅为演示。关闭独立窗口后，应用仍在菜单栏运行，通过右下角菜单退出。
-
-设置按「薪资计算」「工作作息」「外观与隐私」分类：薪资计算包含收入设置和本月计算预览，工作作息包含计薪日历、常用班次及午休开关。编辑期间不会改变看板；点击「保存设置」（`⌘S`）后生效，也可点击「还原更改」放弃编辑。无效输入会显示具体提示并禁用保存。设置窗口关闭后，未保存的草稿在本次运行期间保留。
-
-计薪日历默认使用自动获取的法定假期和调休数据，无需切换模式，直接点击日期即可切换工作日/休息日。支持翻月和跨年，计薪天数按日历自动统计，今日是否计薪也由同一份日历决定，不再配置每周工作日或手填天数。「重置本月」仅清除当前显示月份的手动修改，恢复自动获取的结果，其他月份不受影响。
-
-修改和重置均需点击「保存设置」后生效，手动修改按年月日保存在本机。旧设置迁移时保留薪资、作息、偏好和已启用的日期修改；旧的手填天数及每周出勤规则改用自动日历。
-
-日历来自社区项目 [holiday-cn](https://github.com/NateScarlet/holiday-cn)，依据中国大陆官方节假日通知整理，并非官方 API。接口为 `https://raw.githubusercontent.com/NateScarlet/holiday-cn/master/{年份}.json`。按本地日期每月 1 日获取一次，应用启动、跨日和唤醒时检查，运行期间每分钟检查是否进入新月份；应用关闭期间不后台联网，错过 1 日时在当月首次运行时补检。同一个月成功获取后不重复请求，也可手动刷新。
-
-日历有变化时重新计算并保存全年各月工作日天数，自动更新当前看板；无变化时只更新最近检查时间。自定义日期优先于接口数据，未修改的日期继续跟随更新。获取失败时优先使用该年度的本机缓存，一小时后自动重试。切换到没有缓存的年份时，立即显示周一至周五为工作日、周末休息的临时日历，同时自动获取该年度节假日，并标注获取状态。三个接口都失败或返回空的节假日列表时，保留临时日历，仍可手动修改保存；空数据不会作为有效节假日日历缓存。后续获取成功后自动补齐法定假期和调休，保留手动修改。临时日历不会保存为已获取的节假日数据；跨年不会套用其他年度的日历。
-
-主接口获取失败（包括网络错误、非 200 响应或无效日历数据）时，依次尝试以下备用地址，任一成功即停止：
-
-1. `https://cdn.jsdelivr.net/gh/NateScarlet/holiday-cn@master/{年份}.json`
-2. `https://fastly.jsdelivr.net/gh/NateScarlet/holiday-cn@master/{年份}.json`
-
-每个来源均校验年份与日期，三个来源全部失败后，优先回退到该年缓存；没有缓存则暂按周一至周五计算，并延迟重试。CDN 数据可能存在同步延迟，优先采用 GitHub 主接口。
-
-程序通过 AppKit 创建固定宽度的状态栏图标，`swift run` 也会以无 Dock 图标的菜单栏模式运行。终端输出 `菜单栏入口已创建` 后表示入口初始化完成，需保持命令运行。若仍看不到，请检查菜单栏管理工具的隐藏区域，或退出部分菜单栏应用以释放空间。若命令直接退出或报错，请保留终端输出排查启动问题。
-
-## 打包与测试
+需要 Swift 5.9+ 和 Apple Command Line Tools。
 
 ```sh
-swift run SalaryCoreChecks
-sh scripts/build-app.sh
-open dist/WageFlow.app
+swift run WageFlow                  # 启动菜单栏应用
+swift run SalaryCoreChecks             # 核心检查
+swift build                            # 开发构建
+sh scripts/build-app.sh                # 打包至 dist/WageFlow.app
+python3 scripts/render-previews.py     # 生成预览图，需要 Python 3
 ```
 
-打包脚本生成本机架构的应用并进行临时签名，适合本机运行；公开分发需另行配置开发者签名和公证。
+点击菜单栏人民币图标打开看板，齿轮进入设置。修改后点击「保存设置」（`⌘S`）生效。
 
-## 功能与计算规则
+## 计算与日历
 
-- 每秒刷新今日已赚工资、有效工作进度和下班倒计时。
-- 支持月薪、日薪、时薪，午休不计薪，非工作日不累计收入。
-- 月薪按工作日历统计的计薪天数折算日薪，整月无工作日时目标与收入为 0；不是考勤、税后工资或实际工资单。
-- 支持薄荷、落日、鸢尾配色，隐藏看板和菜单栏悬停提示中的金额，以及独立桌面看板窗口。
-- 设置仅存于本机 UserDefaults，不发送薪资或使用数据。工作日历会访问 GitHub 及必要时的 jsDelivr 备用地址获取公开日历；已有缓存可离线使用。
-- 支持当天结束的班次；不支持跨午夜和加班计薪。
+月薪按当月计薪天数折算，午休及休息日不累计收入；仅支持当天班次。
 
-独立桌面看板是普通 macOS 窗口，并非系统 WidgetKit 小组件。系统小组件和开机启动尚未实现。原文中的第三方隐私政策不代表本项目，未沿用。
+日历使用 [holiday-cn](https://github.com/NateScarlet/holiday-cn)，每月检查更新，GitHub 失败后依次尝试 jsDelivr、Fastly。无可用数据时先按周一至周五计算；获取成功后自动更新，保留手动修改。
+
+薪资和设置仅存本机，联网仅用于获取公开日历。独立看板为普通窗口，不是系统桌面小组件。
+
+## 自动构建与发布
+
+GitHub Actions 在推送 `main`、提交 PR 或手动运行时检查并打包 Apple Silicon / Intel 通用 App，构建附件保留 14 天。
+
+推送 tag 自动创建 Release，附带 App ZIP、SHA-256 校验文件及发布说明：
+
+```sh
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+推荐 `v1.2.0` 格式；含 `-` 的 tag 为预发布。App 版本取 tag 三段数字，其他构建默认 `1.0.0`，构建号取 Actions 运行编号。无需额外发布密钥。
+
+App 使用临时签名，未经过 Apple 公证。确认来源可信后，可通过「系统设置 → 隐私与安全性」允许打开。
 
 ## 目录
 
-`Sources/SalaryCore/` 包含计算模型和日历同步缓存，`Sources/SalaryPanel/` 是菜单栏与界面，`Tests/SalaryCoreTests/` 覆盖工资计算、日历选择及保存恢复、休息日及调休计薪、月度更新、缓存恢复、跨年、错误重试和备用接口切换，`scripts/` 提供打包脚本。检查使用注入的时间和模拟响应，不依赖网络。
-
-使用 Swift 默认的 4 空格缩进，类型名使用 PascalCase，属性和函数使用 camelCase。提交前运行 `swift run SalaryCoreChecks` 和 `swift build`；界面变更附截图并说明手动验证情况。
+`Sources/WageFlow/` 界面与系统集成 · `Sources/SalaryCore/` 计算与日历 · `Tests/` 核心检查 · `scripts/` 打包与预览 · `resource/` 图片。
