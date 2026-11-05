@@ -91,6 +91,7 @@ final class SalaryAppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindow: NSWindow?
     private var timer: Timer?
     private var calendarTimer: Timer?
+    private var clickMonitor: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Keep the item alive and use a native image instead of a TimelineView label.
@@ -189,6 +190,27 @@ final class SalaryAppDelegate: NSObject, NSApplicationDelegate {
         }
         NSApp.activate(ignoringOtherApps: true)
         settingsWindow?.makeKeyAndOrderFront(nil)
+        // Opening the page should not grab the first text field.
+        settingsWindow?.makeFirstResponder(nil)
+        installClickToDismiss()
+    }
+
+    /// Clicking outside a text field always ends editing, as native panels do.
+    private func installClickToDismiss() {
+        guard clickMonitor == nil else { return }
+        clickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] event in
+            self?.resignTextFocus(for: event)
+            return event
+        }
+    }
+
+    private func resignTextFocus(for event: NSEvent) {
+        guard let window = settingsWindow, event.window === window,
+              let content = window.contentView else { return }
+        let point = content.convert(event.locationInWindow, from: nil)
+        let hit = content.hitTest(point)
+        if hit is NSTextField || hit is NSTextView { return }
+        window.makeFirstResponder(nil)
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
@@ -196,6 +218,7 @@ final class SalaryAppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         timer?.invalidate()
         calendarTimer?.invalidate()
+        if let clickMonitor { NSEvent.removeMonitor(clickMonitor) }
         NSWorkspace.shared.notificationCenter.removeObserver(self)
         NotificationCenter.default.removeObserver(self)
         if let statusItem { NSStatusBar.system.removeStatusItem(statusItem) }
@@ -210,15 +233,6 @@ struct Dashboard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            HStack {
-                Image(systemName: "yensign.circle.fill").font(.title2).foregroundStyle(store.tint)
-                Text("WageFlow").font(.headline)
-                Spacer()
-                Button { onOpenSettings?() } label: {
-                    Image(systemName: "gearshape").font(.system(size: 15))
-                }.buttonStyle(.plain).help("设置薪资与作息")
-                    .accessibilityLabel("打开设置")
-            }
             today
             Divider()
             HStack {
@@ -229,26 +243,28 @@ struct Dashboard: View {
                         Image(systemName: "macwindow")
                     }.help("打开独立桌面看板")
                 }
-                Menu {
-                    Button("设置…") { onOpenSettings?() }.keyboardShortcut(",")
-                    Button("退出 WageFlow") { NSApp.terminate(nil) }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 16, weight: .semibold))
-                        .frame(width: 28, height: 28)
+                Button { NSApp.terminate(nil) } label: {
+                    Image(systemName: "power")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 22, height: 22)
                         .contentShape(Rectangle())
                 }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .fixedSize()
-                .help("更多操作")
-                .accessibilityLabel("更多操作")
+                .help("退出 WageFlow")
+                .accessibilityLabel("退出 WageFlow")
             }.buttonStyle(.plain)
         }
         .padding(22)
-        .frame(width: 400)
+        .frame(width: 400, height: 545)
         .background(Color(nsColor: .windowBackgroundColor))
         .tint(store.tint)
+    }
+
+    private func phaseLabel(restDay: Bool, snapshot: WorkSnapshot) -> String {
+        if restDay { return "DAY OFF" }
+        if snapshot.isLunchBreak { return "LUNCH" }
+        if snapshot.isAfterWork { return "DONE" }
+        return "LIVE"
     }
 
     private var today: some View {
@@ -257,18 +273,28 @@ struct Dashboard: View {
             let previous = store.snapshot(at: context.date.addingTimeInterval(-1))
             let gain = max(0, s.earned - previous.earned)
             let isRestDay = store.isWorkday(at: context.date) == false
-            let phase = isRestDay ? "DAY OFF" : (s.isLunchBreak ? "LUNCH" : "LIVE")
+            let phase = phaseLabel(restDay: isRestDay, snapshot: s)
             VStack(alignment: .leading, spacing: 18) {
-                HStack {
+                HStack(spacing: 8) {
                     Text(context.date, format: .dateTime.month().day().weekday()).foregroundStyle(.secondary)
                     Spacer()
                     Circle().fill(store.tint).frame(width: 6, height: 6)
                     Text(phase).font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(store.tint)
+                    Button { onOpenSettings?() } label: {
+                        Image(systemName: "gearshape").font(.system(size: 13))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .help("设置薪资与作息")
+                    .accessibilityLabel("打开设置")
+                    .keyboardShortcut(",", modifiers: .command)
                 }.font(.caption)
                 if isRestDay {
                     restDay
                 } else if s.isLunchBreak {
                     lunchBreak(s)
+                } else if s.isAfterWork {
+                    finished(s)
                 } else {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack(spacing: 8) {
@@ -339,7 +365,9 @@ struct Dashboard: View {
                     }.padding(16).background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 12))
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var restDay: some View {
@@ -349,9 +377,6 @@ struct Dashboard: View {
                 .font(.system(size: 30, weight: .semibold, design: .rounded))
             Text("把时间留给生活，也留给自己。")
                 .font(.subheadline).foregroundStyle(.secondary)
-            Text("今天不计薪，安心享受休息时光。")
-                .font(.caption).foregroundStyle(.secondary)
-                .padding(.bottom, 14)
         }
     }
 
@@ -379,11 +404,50 @@ struct Dashboard: View {
         }
     }
 
+    private func finished(_ s: WorkSnapshot) -> some View {
+        breakCard {
+            AfterWorkIllustration(tint: store.tint)
+            Text("今日收工")
+                .font(.system(size: 30, weight: .semibold, design: .rounded))
+            Text("辛苦啦，今天也认真生活了。")
+                .font(.subheadline).foregroundStyle(.secondary)
+            VStack(spacing: 6) {
+                Text("今日已赚 / EARNED")
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                Text(store.settings.hideIncome ? "¥ ••••" : (store.calendarReady ? money(s.earned) : "¥ —"))
+                    .font(.system(size: 38, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(store.tint)
+                Text("计薪 \(hours(store.settings.paidMinutes)) 小时 · 在岗 \(hours(Double(store.settings.end - store.settings.start))) 小时")
+                    .font(.caption).foregroundStyle(.secondary)
+                Text(workingHours)
+                    .font(.caption2).foregroundStyle(.secondary)
+            }
+            .padding(.top, 2)
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    private var workingHours: String {
+        let settings = store.settings
+        var parts = ["\(clock(settings.start)) – \(clock(settings.end))"]
+        if settings.lunchEnd > settings.lunchStart {
+            parts.append("午休 \(clock(settings.lunchStart)) – \(clock(settings.lunchEnd))")
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    private func hours(_ minutes: Double) -> String {
+        String(format: "%.1f", minutes / 60)
+    }
+
     /// Rest days and lunch breaks share the same quiet, illustration-led card.
     private func breakCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         VStack(spacing: 16) { content() }
             .frame(maxWidth: .infinity)
             .padding(20)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(store.tint.opacity(0.09), in: RoundedRectangle(cornerRadius: 18))
             .overlay(alignment: .bottom) {
                 // Keep fallback calendars visible so an estimated day is clear.
@@ -482,6 +546,39 @@ private struct LunchBreakIllustration: View {
                     .foregroundStyle(tint.opacity(0.5))
                     .rotationEffect(.degrees(reduceMotion ? 0 : sin(time * .pi / 6) * 12))
                     .scaleEffect(1 + sin(time * .pi / 3) * 0.06)
+                    .offset(x: 105, y: -20)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 90)
+        }
+        .transaction { $0.animation = nil }
+        .accessibilityHidden(true)
+        .allowsHitTesting(false)
+    }
+}
+
+private struct AfterWorkIllustration: View {
+    let tint: Color
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        // Same drawing-property animation as the other break pages.
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { context in
+            let time = reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate
+            let phase = time * 1.3
+            ZStack {
+                Ellipse()
+                    .fill(tint.opacity(0.08))
+                    .frame(width: 100, height: 12)
+                    .offset(y: 32)
+                Image(systemName: "sun.horizon.fill")
+                    .font(.system(size: 42, weight: .light))
+                    .foregroundStyle(tint)
+                    .offset(y: 6)
+                Image(systemName: "sparkles")
+                    .font(.system(size: 20, weight: .light))
+                    .foregroundStyle(tint.opacity(reduceMotion ? 0.55 : 0.45 + 0.15 * sin(phase)))
+                    .scaleEffect(reduceMotion ? 1 : 1 + sin(phase) * 0.05)
                     .offset(x: 105, y: -20)
             }
             .frame(maxWidth: .infinity)

@@ -8,13 +8,15 @@ struct SalaryCalculatorTests {
         suite.testBeforeWorkAndAfterWork()
         suite.testLunchPausesEarnings()
         suite.testLunchBreakWindow()
+        suite.testAfterWorkWindow()
         suite.testWeekendHasNoEarnings()
         suite.testCyclesAndEffectivePay()
         suite.testInvalidSchedules()
         checkHolidayCalendars()
         checkWorkCalendarSelection()
+        checkTimeCode()
         await checkCalendarSync()
-        print("Passed salary, holiday-calendar, and monthly-sync checks")
+        print("Passed salary, holiday-calendar, monthly-sync, and time-entry checks")
     }
     private var calendar: Calendar {
         var c = Calendar(identifier: .gregorian)
@@ -67,6 +69,16 @@ struct SalaryCalculatorTests {
         var invalid = WorkSettings()
         invalid.end = invalid.start
         XCTAssertFalse(onLunch(invalid, 12, 30).isLunchBreak)
+    }
+    func testAfterWorkWindow() {
+        XCTAssertFalse(snapshot(17, 59).isAfterWork)
+        XCTAssertTrue(snapshot(18).isAfterWork)
+        XCTAssertTrue(snapshot(23).isAfterWork)
+        XCTAssertFalse(snapshot(12, 30).isAfterWork)
+        XCTAssertFalse(snapshot(8).isAfterWork)
+        XCTAssertFalse(snapshot(18, day: 1).isAfterWork)
+        XCTAssertEqual(snapshot(19).earned, WorkSettings().dailyPay, accuracy: 0.001)
+        XCTAssertEqual(snapshot(18).status, "今日收工，辛苦啦！")
     }
     func testWeekendHasNoEarnings() {
         XCTAssertEqual(snapshot(15, day: 1).earned, 0)

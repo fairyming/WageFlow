@@ -1,12 +1,19 @@
 import SwiftUI
 import SalaryCore
 
+enum SettingsPage: String, CaseIterable, Identifiable {
+    case pay = "薪资"
+    case appearance = "外观"
+
+    var id: String { rawValue }
+}
+
 @MainActor
 final class SettingsEditor: ObservableObject {
     @Published var draft: WorkSettings
     @Published var income: String
     @Published var lunchEnabled: Bool
-    @Published var page = 0
+    @Published var page: SettingsPage = .pay
     private var original: WorkSettings
 
     init(settings: WorkSettings) {
@@ -101,55 +108,36 @@ struct SettingsPanel: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(spacing: 12) {
-                    Image(systemName: "slider.horizontal.3").font(.title2).foregroundStyle(store.tint)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("按你的节奏，记录每一秒").font(.title3.bold())
-                        Text("修改后保存，即可更新所有看板。").font(.caption).foregroundStyle(.secondary)
+            HStack(spacing: 12) {
+                Image(systemName: "slider.horizontal.3").font(.title2).foregroundStyle(store.tint)
+                Text("按你的节奏，记录每一秒").font(.title3.bold()).lineLimit(1).minimumScaleFactor(0.85)
+                Spacer(minLength: 12)
+                HStack(spacing: 2) {
+                    ForEach(SettingsPage.allCases) { page in
+                        ChoiceChip(title: page.rawValue, selected: editor.page == page, tint: store.tint) {
+                            editor.page = page
+                        }
                     }
-                    Spacer()
                 }
-                Picker("设置分类", selection: $editor.page) {
-                    Text("薪资计算").tag(0)
-                    Text("工作作息").tag(1)
-                    Text("外观与隐私").tag(2)
-                }.pickerStyle(.segmented)
+                .padding(3)
+                .background(Color.secondary.opacity(0.08), in: Capsule())
+                .frame(width: 180)
             }.padding(24)
             Divider()
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    if editor.page == 0 { salary }
-                    else if editor.page == 1 { schedule }
-                    else { appearance }
-                    if !editor.errors.isEmpty {
-                        VStack(alignment: .leading, spacing: 6) {
-                            ForEach(editor.errors, id: \.self) { message in
-                                Label(message, systemImage: "exclamationmark.circle").font(.caption)
-                            }
-                        }.foregroundStyle(.red).frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(14).background(Color.red.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+                    if editor.page == .pay {
+                        incomeCard
+                        shiftCard
+                        calendarCard
+                        previewCard
+                    } else {
+                        themeCard
                     }
                 }.padding(24)
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
             Divider()
-            HStack {
-                Label(editor.hasChanges ? "有未保存的修改" : "设置已保存在本机", systemImage: editor.hasChanges ? "pencil.circle" : "checkmark.circle")
-                    .font(.caption).foregroundStyle(.secondary)
-                Spacer()
-                Button("还原更改") { editor.reset(to: store.settings) }.disabled(!editor.hasChanges)
-                Button("保存设置") {
-                    guard canSave else { return }
-                    // Preserve preferences that are edited outside this panel.
-                    var settings = editor.candidate
-                    settings.commute = store.settings.commute
-                    settings.dailyCost = store.settings.dailyCost
-                    settings.hideIncome = store.settings.hideIncome
-                    store.settings = settings
-                    editor.reset(to: settings)
-                }.buttonStyle(.borderedProminent).disabled(!canSave)
-                    .keyboardShortcut("s", modifiers: .command)
-            }.padding(20)
+            footer
         }
         .frame(minWidth: 540, minHeight: 600)
         .background(Color(nsColor: .windowBackgroundColor))
@@ -160,75 +148,133 @@ struct SettingsPanel: View {
         .task { await holidays.loadCurrentYear() }
     }
 
-    private var salary: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            card("收入方式", icon: "yensign.circle") {
-                Picker("薪资周期", selection: $editor.draft.cycle) {
-                    ForEach(PayCycle.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-                }.pickerStyle(.segmented).labelsHidden()
-                input(editor.draft.cycle.rawValue + "金额", text: $editor.income, unit: "元")
-            }
-            card("本月计算预览", icon: "equal.circle") {
-                if let settings = previewSettings {
-                    HStack {
-                        preview("每日目标", money(settings.dailyPay))
-                        Spacer()
-                        preview("每小时", money(settings.hourlyPay))
-                        Spacer()
-                        preview("每日计薪", String(format: "%.1f 小时", settings.paidMinutes / 60))
+    private var footer: some View {
+        VStack(spacing: 14) {
+            if !editor.errors.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(editor.errors, id: \.self) { message in
+                        Label(message, systemImage: "exclamationmark.circle").font(.caption)
                     }
-                } else {
-                    Text("完善金额和作息后，即可预览计算结果。").font(.callout).foregroundStyle(.secondary)
+                }.foregroundStyle(.red).frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12).background(Color.red.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
+            }
+            HStack {
+                Label(editor.hasChanges ? "有未保存的修改" : "设置已保存在本机", systemImage: editor.hasChanges ? "pencil.circle" : "checkmark.circle")
+                    .font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                Button("还原更改") { editor.reset(to: store.settings) }.disabled(!editor.hasChanges)
+                Button("保存设置") { save() }
+                    .buttonStyle(.borderedProminent).disabled(!canSave)
+                    .keyboardShortcut("s", modifiers: .command)
+            }
+        }.padding(20)
+    }
+
+    private func save() {
+        guard canSave else { return }
+        // Preserve preferences that are edited outside this panel.
+        var settings = editor.candidate
+        settings.commute = store.settings.commute
+        settings.dailyCost = store.settings.dailyCost
+        settings.hideIncome = store.settings.hideIncome
+        store.settings = settings
+        editor.reset(to: settings)
+    }
+
+    private var incomeCard: some View {
+        card("收入方式", icon: "yensign.circle") {
+            HStack(spacing: 2) {
+                ForEach(PayCycle.allCases, id: \.self) { cycle in
+                    ChoiceChip(title: cycle.rawValue, selected: editor.draft.cycle == cycle, tint: store.tint) {
+                        editor.draft.cycle = cycle
+                    }
                 }
+            }
+            .padding(3)
+            .background(Color.secondary.opacity(0.08), in: Capsule())
+            AmountField(title: editor.draft.cycle.rawValue + "金额", text: $editor.income, tint: store.tint)
+        }
+    }
+
+    private var previewCard: some View {
+        card("本月计算预览", icon: "equal.circle") {
+            if let settings = previewSettings {
+                HStack(spacing: 10) {
+                    StatTile(title: "每日目标", value: money(settings.dailyPay), tint: store.tint)
+                    StatTile(title: "每小时", value: money(settings.hourlyPay), tint: store.tint)
+                    StatTile(title: "每日计薪", value: String(format: "%.1f 小时", settings.paidMinutes / 60),
+                             tint: store.tint)
+                }
+            } else {
+                Text("完善金额和作息后，即可预览计算结果。").font(.callout).foregroundStyle(.secondary)
             }
         }
     }
 
-    private var schedule: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            card("计薪日历", icon: "calendar") {
-                WorkCalendarPicker(settings: $editor.draft, holidays: holidays, tint: store.tint)
+    private var shiftCard: some View {
+        card("上下班与午休", icon: "clock") {
+            HStack(spacing: 6) {
+                ActionChip(title: "朝九晚六", tint: store.tint) { editor.setShift(start: 540, end: 1080) }
+                ActionChip(title: "朝十晚七", tint: store.tint) { editor.setShift(start: 600, end: 1140) }
+                ActionChip(title: "9:00–17:30", tint: store.tint) { editor.setShift(start: 540, end: 1050) }
+                Spacer()
             }
-            card("上下班与午休", icon: "clock") {
-                HStack(spacing: 8) {
-                    Button("朝九晚六") { editor.setShift(start: 540, end: 1080) }
-                    Button("朝十晚七") { editor.setShift(start: 600, end: 1140) }
-                    Button("9:00–17:30") { editor.setShift(start: 540, end: 1050) }
-                }.controlSize(.small)
-                HStack(spacing: 24) {
-                    timeInput("上班", minute: $editor.draft.start)
-                    timeInput("下班", minute: $editor.draft.end)
+            HStack(alignment: .top, spacing: 6) {
+                TimeField(title: "上班", minute: $editor.draft.start, tint: store.tint)
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(store.tint.opacity(0.7))
+                    .padding(.top, 36)
+                    .accessibilityHidden(true)
+                TimeField(title: "下班", minute: $editor.draft.end, tint: store.tint)
+            }
+            Divider()
+            HStack(spacing: 10) {
+                Text("扣除午休时间").font(.callout)
+                Spacer()
+                Toggle("", isOn: Binding(get: { editor.lunchEnabled }, set: { editor.enableLunch($0) }))
+                    .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                    .accessibilityLabel("扣除午休时间")
+            }
+            if editor.lunchEnabled {
+                HStack(alignment: .top, spacing: 6) {
+                    TimeField(title: "午休开始", minute: $editor.draft.lunchStart, tint: store.tint)
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(store.tint.opacity(0.7))
+                        .padding(.top, 36)
+                        .accessibilityHidden(true)
+                    TimeField(title: "午休结束", minute: $editor.draft.lunchEnd, tint: store.tint)
                 }
-                Divider()
-                Toggle("扣除午休时间", isOn: Binding(get: { editor.lunchEnabled }, set: { editor.enableLunch($0) }))
-                    .toggleStyle(.switch).controlSize(.small)
-                if editor.lunchEnabled {
-                    HStack(spacing: 24) {
-                        timeInput("午休开始", minute: $editor.draft.lunchStart)
-                        timeInput("午休结束", minute: $editor.draft.lunchEnd)
-                    }
-                }
-                Text("仅支持当天班次；关闭午休扣除后，整个班次均计薪。").font(.caption).foregroundStyle(.secondary)
+            }
+            if let summary = shiftSummary {
+                Label(summary, systemImage: "hourglass")
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }
     }
 
-    private var appearance: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            card("看板配色", icon: "paintpalette") {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4), spacing: 10) {
-                    ForEach(WorkTheme.all) { theme in
-                        swatch(theme)
-                    }
+    private var calendarCard: some View {
+        card("计薪日历", icon: "calendar") {
+            WorkCalendarPicker(settings: $editor.draft, holidays: holidays, tint: store.tint)
+        }
+    }
+
+    private var shiftSummary: String? {
+        let settings = editor.candidate
+        guard settings.valid else { return nil }
+        let paid = String(format: "%.1f", settings.paidMinutes / 60)
+        let span = String(format: "%.1f", Double(settings.end - settings.start) / 60)
+        return "每日计薪 \(paid) 小时 · 在岗 \(span) 小时"
+    }
+
+    private var themeCard: some View {
+        card("主题", icon: "paintpalette") {
+            DashboardPreview(theme: WorkTheme.named(editor.draft.theme))
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4), spacing: 10) {
+                ForEach(WorkTheme.all) { theme in
+                    swatch(theme)
                 }
-                Text("配色将在保存后应用于看板。").font(.caption).foregroundStyle(.secondary)
-            }
-            card("隐私保护", icon: "eye.slash") {
-                Text("收入金额可在看板中点击眼睛图标隐藏，菜单栏悬停提示会同步隐藏。")
-                    .font(.caption).foregroundStyle(.secondary)
-                Divider()
-                Label("所有设置仅保存在这台 Mac 上，不上传薪资数据。", systemImage: "lock.shield")
-                    .font(.caption).foregroundStyle(.secondary)
             }
         }
     }
@@ -257,43 +303,19 @@ struct SettingsPanel: View {
             .accessibilityValue(selected ? "已选择" : "未选择")
     }
 
-    private func input(_ title: String, text: Binding<String>, unit: String) -> some View {
-        HStack {
-            Text(title)
-            Spacer()
-            TextField(title, text: text).textFieldStyle(.roundedBorder)
-                .multilineTextAlignment(.trailing).frame(width: 140)
-            Text(unit).foregroundStyle(.secondary).frame(width: 20)
-        }
-    }
-
-    private func timeInput(_ title: String, minute: Binding<Int>) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.caption).foregroundStyle(.secondary)
-            DatePicker(title, selection: Binding(get: {
-                Calendar.current.date(bySettingHour: minute.wrappedValue / 60, minute: minute.wrappedValue % 60,
-                                      second: 0, of: Date()) ?? Date()
-            }, set: {
-                let c = Calendar.current.dateComponents([.hour, .minute], from: $0)
-                minute.wrappedValue = (c.hour ?? 0) * 60 + (c.minute ?? 0)
-            }), displayedComponents: .hourAndMinute)
-                .datePickerStyle(.field).labelsHidden().controlSize(.large)
-        }.frame(maxWidth: .infinity, alignment: .leading)
-    }
-
     private func card<Content: View>(_ title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Label(title, systemImage: icon).font(.headline)
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(store.tint)
+                    .frame(width: 22, height: 22)
+                    .background(store.tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 6))
+                Text(title).font(.headline)
+            }
             content()
         }.padding(18).frame(maxWidth: .infinity, alignment: .leading)
             .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 14))
-    }
-
-    private func preview(_ title: String, _ value: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(.caption).foregroundStyle(.secondary)
-            Text(value).font(.system(size: 17, weight: .semibold, design: .rounded)).monospacedDigit()
-        }
     }
 }
 

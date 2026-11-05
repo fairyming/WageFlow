@@ -31,18 +31,18 @@ struct PreviewRenderer {
         previewDefaults.set(calendar, forKey: "holiday-calendar-2026")
         previewDefaults.set(previewDate, forKey: "holiday-calendar-checked-2026")
         let store = SalaryStore()
-        try render(Dashboard(store: store), name: "dashboard-workday", width: 400, height: 538)
+        try render(Dashboard(store: store), name: "dashboard-workday", width: 400, height: 545)
         previewDate = Calendar(identifier: .gregorian).date(from:
             DateComponents(year: 2026, month: 11, day: 4, hour: 12, minute: 30))!
-        try render(Dashboard(store: store), name: "dashboard-lunch", width: 400, height: 443)
+        try render(Dashboard(store: store), name: "dashboard-lunch", width: 400, height: 545)
+        previewDate = Calendar(identifier: .gregorian).date(from:
+            DateComponents(year: 2026, month: 11, day: 4, hour: 19, minute: 30))!
+        try render(Dashboard(store: store), name: "dashboard-finished", width: 400, height: 545)
         previewDate = Calendar(identifier: .gregorian).date(from:
             DateComponents(year: 2026, month: 11, day: 7, hour: 11, minute: 30))!
-        try render(Dashboard(store: store), name: "dashboard-restday", width: 400, height: 430)
-        for (page, name, height) in [(0, "settings-salary", 650.0),
-                                     (1, "settings-schedule", 1030.0),
-                                     (2, "settings-appearance", 650.0)] {
-            try render(SettingsPanel(store: store, previewPage: page), name: name, width: 560, height: height)
-        }
+        try render(Dashboard(store: store), name: "dashboard-restday", width: 400, height: 545)
+        try render(SettingsPanel(store: store), name: "settings-pay", width: 560, height: 1445)
+        try render(SettingsPanel(store: store, previewPage: .appearance), name: "settings-appearance", width: 560, height: 600)
     }
 
     @MainActor static func render<V: View>(_ content: V, name: String, width: Double, height: Double) throws {
@@ -86,7 +86,7 @@ with tempfile.TemporaryDirectory(prefix="wageflow-previews-") as temp:
             text = text.replace("UserDefaults.standard", "previewDefaults")
             text = text.replace("context.date", "previewDate")
         if source.name == "SettingsPanel.swift":
-            text = text.replace("init(store: SalaryStore) {", "init(store: SalaryStore, previewPage: Int = 0) {")
+            text = text.replace("init(store: SalaryStore) {", "init(store: SalaryStore, previewPage: SettingsPage = .pay) {")
             text = text.replace("_editor = StateObject(wrappedValue: SettingsEditor(settings: store.settings))",
                                 "let editor = SettingsEditor(settings: store.settings)\n"
                                 "        editor.page = previewPage\n"

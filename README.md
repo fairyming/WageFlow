@@ -7,7 +7,8 @@
 ## 功能
 
 - 实时收入、每秒收益动画、上班进度和下班倒计时。
-- 月薪 / 日薪 / 时薪，支持午休扣除。
+- 月薪 / 日薪 / 时薪，支持午休扣除与实时折算预览。
+- 上下班与午休时间支持 9:30、930 等简写输入，失焦自动规范为 09:30。
 - 自动计薪日历，可手动修改日期、重置并保存。
 - 午休时段独立页面，餐碗热气动画与午休结束倒计时。
 - 休息日专属看板，咖啡热气和太阳呼吸动画。
@@ -21,18 +22,20 @@
 | --- | --- |
 | ![工作日看板](resource/dashboard-workday.png) | ![午休看板](resource/dashboard-lunch.png) |
 
-| 休息日 | 薪资计算 |
+| 收工 | 休息日 |
 | --- | --- |
-| ![休息日看板](resource/dashboard-restday.png) | ![薪资计算](resource/settings-salary.png) |
-
-| 外观与隐私 |
-| --- |
-| ![外观与隐私](resource/settings-appearance.png) |
+| ![收工看板](resource/dashboard-finished.png) | ![休息日看板](resource/dashboard-restday.png) |
 
 <details>
-<summary>工作作息与计薪日历</summary>
+<summary>设置（薪资 / 外观）</summary>
 
-<img src="resource/settings-schedule.png" alt="工作作息与计薪日历" width="560">
+**薪资**
+
+<img src="resource/settings-pay.png" alt="薪资设置" width="560">
+
+**外观**
+
+<img src="resource/settings-appearance.png" alt="外观设置" width="560">
 
 </details>
 
