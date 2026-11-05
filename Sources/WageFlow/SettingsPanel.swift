@@ -140,10 +140,11 @@ struct SettingsPanel: View {
                 Button("还原更改") { editor.reset(to: store.settings) }.disabled(!editor.hasChanges)
                 Button("保存设置") {
                     guard canSave else { return }
-                    // Preserve existing stored cost preferences.
+                    // Preserve preferences that are edited outside this panel.
                     var settings = editor.candidate
                     settings.commute = store.settings.commute
                     settings.dailyCost = store.settings.dailyCost
+                    settings.hideIncome = store.settings.hideIncome
                     store.settings = settings
                     editor.reset(to: settings)
                 }.buttonStyle(.borderedProminent).disabled(!canSave)
@@ -223,8 +224,7 @@ struct SettingsPanel: View {
                 Text("配色将在保存后应用于看板。").font(.caption).foregroundStyle(.secondary)
             }
             card("隐私保护", icon: "eye.slash") {
-                Toggle("隐藏收入金额", isOn: $editor.draft.hideIncome).toggleStyle(.switch)
-                Text("隐藏今日看板和菜单栏悬停提示中的收入。薪资设置仍可查看和编辑。")
+                Text("收入金额可在看板中点击眼睛图标隐藏，菜单栏悬停提示会同步隐藏。")
                     .font(.caption).foregroundStyle(.secondary)
                 Divider()
                 Label("所有设置仅保存在这台 Mac 上，不上传薪资数据。", systemImage: "lock.shield")

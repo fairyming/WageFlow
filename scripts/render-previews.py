@@ -40,7 +40,7 @@ struct PreviewRenderer {
         try render(Dashboard(store: store), name: "dashboard-restday", width: 400, height: 430)
         for (page, name, height) in [(0, "settings-salary", 650.0),
                                      (1, "settings-schedule", 1030.0),
-                                     (2, "settings-appearance", 690.0)] {
+                                     (2, "settings-appearance", 650.0)] {
             try render(SettingsPanel(store: store, previewPage: page), name: name, width: 560, height: height)
         }
     }

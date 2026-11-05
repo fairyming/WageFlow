@@ -181,7 +181,7 @@ final class SalaryAppDelegate: NSObject, NSApplicationDelegate {
             window.title = "WageFlow 设置"
             window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
             window.isReleasedWhenClosed = false
-            window.setContentSize(NSSize(width: 560, height: 690))
+            window.setContentSize(NSSize(width: 560, height: 650))
             window.contentMinSize = NSSize(width: 540, height: 600)
             window.setFrameAutosaveName("WageFlowSettings")
             window.center()
@@ -271,8 +271,21 @@ struct Dashboard: View {
                     lunchBreak(s)
                 } else {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("今日已赚 / EARNED TODAY")
-                            .font(.system(size: 10, weight: .semibold, design: .monospaced)).foregroundStyle(.secondary)
+                        HStack(spacing: 8) {
+                            Text("今日已赚 / EARNED TODAY")
+                                .font(.system(size: 10, weight: .semibold, design: .monospaced)).foregroundStyle(.secondary)
+                            Spacer()
+                            Button { store.settings.hideIncome.toggle() } label: {
+                                Image(systemName: store.settings.hideIncome ? "eye.slash" : "eye")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(store.tint)
+                                    .frame(width: 22, height: 22)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .help(store.settings.hideIncome ? "显示收入金额" : "隐藏收入金额")
+                            .accessibilityLabel(store.settings.hideIncome ? "显示收入金额" : "隐藏收入金额")
+                        }
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             Group {
                                 if store.settings.hideIncome {
