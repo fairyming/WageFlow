@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 import SalaryCore
 
 private final class CalendarNavigation: ObservableObject {
@@ -18,6 +19,9 @@ struct WorkCalendarPicker: View {
         holidays.monthCalendar(settings: settings, year: year, month: month)
     }
     private var monthKey: String { String(format: "%04d-%02d-", year, month) }
+    private var currentMonthStart: Date {
+        calendar.date(from: calendar.dateComponents([.year, .month], from: Date()))!
+    }
     private var hasCustomDays: Bool { settings.workdayOverrides.keys.contains { $0.hasPrefix(monthKey) } }
 
     var body: some View {
@@ -90,6 +94,11 @@ struct WorkCalendarPicker: View {
             }
         }
         .task(id: year) { await holidays.loadYear(year) }
+        // Reopening the settings window should always land on the current month.
+        .onReceive(NotificationCenter.default.publisher(for: .settingsWindowWillOpen)) { _ in
+            let current = currentMonthStart
+            if navigation.month != current { navigation.month = current }
+        }
     }
 
     private func calendarGrid(_ month: WorkMonth) -> some View {

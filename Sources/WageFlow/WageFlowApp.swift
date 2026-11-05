@@ -3,6 +3,11 @@ import AppKit
 import SalaryCore
 import Combine
 
+extension Notification.Name {
+    /// Posted right before the settings window is shown again.
+    static let settingsWindowWillOpen = Notification.Name("WageFlowSettingsWindowWillOpen")
+}
+
 @MainActor
 final class SalaryStore: ObservableObject {
     let holidays: HolidayCalendarStore
@@ -200,6 +205,7 @@ final class SalaryAppDelegate: NSObject, NSApplicationDelegate {
             settingsWindow = window
         }
         NSApp.activate(ignoringOtherApps: true)
+        NotificationCenter.default.post(name: .settingsWindowWillOpen, object: nil)
         settingsWindow?.makeKeyAndOrderFront(nil)
         // Opening the page should not grab the first text field.
         settingsWindow?.makeFirstResponder(nil)
