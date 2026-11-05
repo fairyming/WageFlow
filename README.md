@@ -9,6 +9,7 @@
 - 实时收入、每秒收益动画、上班进度和下班倒计时。
 - 月薪 / 日薪 / 时薪，支持午休扣除。
 - 自动计薪日历，可手动修改日期、重置并保存。
+- 午休时段独立页面，餐碗热气动画与午休结束倒计时。
 - 休息日专属看板，咖啡热气和太阳呼吸动画。
 - 三种配色、金额隐藏及独立桌面看板。
 
@@ -16,13 +17,17 @@
 
 实际界面渲染，使用演示数据。
 
-| 工作日 | 休息日 |
+| 工作日 | 午休 |
 | --- | --- |
-| ![工作日看板](resource/dashboard-workday.png) | ![休息日看板](resource/dashboard-restday.png) |
+| ![工作日看板](resource/dashboard-workday.png) | ![午休看板](resource/dashboard-lunch.png) |
 
-| 薪资计算 | 外观与隐私 |
+| 休息日 | 薪资计算 |
 | --- | --- |
-| ![薪资计算](resource/settings-salary.png) | ![外观与隐私](resource/settings-appearance.png) |
+| ![休息日看板](resource/dashboard-restday.png) | ![薪资计算](resource/settings-salary.png) |
+
+| 外观与隐私 |
+| --- |
+| ![外观与隐私](resource/settings-appearance.png) |
 
 <details>
 <summary>工作作息与计薪日历</summary>
@@ -47,7 +52,7 @@ python3 scripts/render-previews.py     # 生成预览图，需要 Python 3
 
 ## 计算与日历
 
-月薪按当月计薪天数折算，午休及休息日不累计收入；仅支持当天班次。
+月薪按当月计薪天数折算，午休及休息日不累计收入；仅支持当天班次。午休时段看板切换为午休页面并显示结束倒计时，关闭「扣除午休时间」后不显示该页面。
 
 日历使用 [holiday-cn](https://github.com/NateScarlet/holiday-cn)，每月检查更新，GitHub 失败后依次尝试 jsDelivr、Fastly。无可用数据时先按周一至周五计算；获取成功后自动更新，保留手动修改。
 

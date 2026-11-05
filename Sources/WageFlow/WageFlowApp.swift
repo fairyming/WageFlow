@@ -263,77 +263,80 @@ struct Dashboard: View {
             let previous = store.snapshot(at: context.date.addingTimeInterval(-1))
             let gain = max(0, s.earned - previous.earned)
             let isRestDay = store.isWorkday(at: context.date) == false
+            let phase = isRestDay ? "DAY OFF" : (s.isLunchBreak ? "LUNCH" : "LIVE")
             VStack(alignment: .leading, spacing: 18) {
                 HStack {
                     Text(context.date, format: .dateTime.month().day().weekday()).foregroundStyle(.secondary)
                     Spacer()
                     Circle().fill(store.tint).frame(width: 6, height: 6)
-                    Text(isRestDay ? "DAY OFF" : "LIVE").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(store.tint)
+                    Text(phase).font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(store.tint)
                 }.font(.caption)
                 if isRestDay {
                     restDay
+                } else if s.isLunchBreak {
+                    lunchBreak(s)
                 } else {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("今日已赚 / EARNED TODAY")
-                        .font(.system(size: 10, weight: .semibold, design: .monospaced)).foregroundStyle(.secondary)
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Group {
-                            if store.settings.hideIncome {
-                                Text("¥ ••••")
-                            } else if store.calendarReady {
-                                AnimatedEarnings(value: s.earned)
-                            } else {
-                                Text("¥ —")
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("今日已赚 / EARNED TODAY")
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced)).foregroundStyle(.secondary)
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Group {
+                                if store.settings.hideIncome {
+                                    Text("¥ ••••")
+                                } else if store.calendarReady {
+                                    AnimatedEarnings(value: s.earned)
+                                } else {
+                                    Text("¥ —")
+                                }
+                            }
+                            .font(.system(size: 48, weight: .semibold, design: .rounded))
+                            .monospacedDigit().minimumScaleFactor(0.5).lineLimit(1)
+                            if !store.settings.hideIncome && store.calendarReady {
+                                // Reserve space even while paused to keep the amount stable.
+                                EarningsGain(value: gain, tint: store.tint, startedAt: context.date)
+                                    .frame(width: 72, alignment: .leading)
+                                    .opacity(gain > 0 ? 1 : 0)
+                                    .layoutPriority(1)
                             }
                         }
-                        .font(.system(size: 48, weight: .semibold, design: .rounded))
-                        .monospacedDigit().minimumScaleFactor(0.5).lineLimit(1)
-                        if !store.settings.hideIncome && store.calendarReady {
-                            // Reserve space even while paused to keep the amount stable.
-                            EarningsGain(value: gain, tint: store.tint, startedAt: context.date)
-                                .frame(width: 72, alignment: .leading)
-                                .opacity(gain > 0 ? 1 : 0)
-                                .layoutPriority(1)
+                        Label(store.calendarReady ? s.status : "计薪日历未就绪，请在设置中重新获取", systemImage: "sparkles").font(.caption).foregroundStyle(store.tint)
+                    }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
+                        .background(store.tint.opacity(0.09), in: RoundedRectangle(cornerRadius: 18))
+                    HStack {
+                        metric("今日目标", store.settings.hideIncome ? "••••" : (store.calendarReady ? money(store.calculationSettings.dailyPay) : "—"))
+                        Spacer()
+                        metric("每小时收入", store.settings.hideIncome ? "••••" : (store.calendarReady ? money(store.calculationSettings.hourlyPay) : "—"))
+                    }
+                    if store.currentWorkMonth?.isEstimated == true {
+                        Label("日历暂按周一至周五计算", systemImage: "calendar.badge.exclamationmark")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text("上班进度").font(.caption).foregroundStyle(.secondary)
+                            Spacer()
+                            Text(String(format: "%.1f%%", s.progress * 100)).font(.caption.monospacedDigit())
                         }
+                        ProgressView(value: s.progress)
+                        HStack {
+                            Text(clock(store.settings.start))
+                            Spacer()
+                            Text(clock(store.settings.end))
+                        }.font(.caption2).foregroundStyle(.secondary)
                     }
-                    Label(store.calendarReady ? s.status : "计薪日历未就绪，请在设置中重新获取", systemImage: "sparkles").font(.caption).foregroundStyle(store.tint)
-                }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
-                    .background(store.tint.opacity(0.09), in: RoundedRectangle(cornerRadius: 18))
-                HStack {
-                    metric("今日目标", store.settings.hideIncome ? "••••" : (store.calendarReady ? money(store.calculationSettings.dailyPay) : "—"))
-                    Spacer()
-                    metric("每小时收入", store.settings.hideIncome ? "••••" : (store.calendarReady ? money(store.calculationSettings.hourlyPay) : "—"))
-                }
-                if store.currentWorkMonth?.isEstimated == true {
-                    Label("日历暂按周一至周五计算", systemImage: "calendar.badge.exclamationmark")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                VStack(alignment: .leading, spacing: 10) {
                     HStack {
-                        Text("上班进度").font(.caption).foregroundStyle(.secondary)
+                        Image(systemName: "hourglass").foregroundStyle(store.tint)
+                        Text("距离下班").font(.caption).foregroundStyle(.secondary)
                         Spacer()
-                        Text(String(format: "%.1f%%", s.progress * 100)).font(.caption.monospacedDigit())
-                    }
-                    ProgressView(value: s.progress)
-                    HStack {
-                        Text(clock(store.settings.start))
-                        Spacer()
-                        Text(clock(store.settings.end))
-                    }.font(.caption2).foregroundStyle(.secondary)
-                }
-                HStack {
-                    Image(systemName: "hourglass").foregroundStyle(store.tint)
-                    Text("距离下班").font(.caption).foregroundStyle(.secondary)
-                    Spacer()
-                    Text(duration(s.remaining)).font(.system(size: 22, weight: .medium, design: .monospaced))
-                }.padding(16).background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 12))
+                        Text(duration(s.remaining)).font(.system(size: 22, weight: .medium, design: .monospaced))
+                    }.padding(16).background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 12))
                 }
             }
         }
     }
 
     private var restDay: some View {
-        VStack(spacing: 16) {
+        breakCard {
             RestDayIllustration(tint: store.tint)
             Text("今日休息")
                 .font(.system(size: 30, weight: .semibold, design: .rounded))
@@ -343,16 +346,47 @@ struct Dashboard: View {
                 .font(.caption).foregroundStyle(.secondary)
                 .padding(.bottom, 14)
         }
-        .frame(maxWidth: .infinity)
-        .padding(20)
-        .background(store.tint.opacity(0.09), in: RoundedRectangle(cornerRadius: 18))
-        .overlay(alignment: .bottom) {
-            // Keep fallback calendars visible so an estimated rest day is clear.
-            if store.currentWorkMonth?.isEstimated == true {
-                Text("日历暂按周一至周五计算")
-                    .font(.caption2).foregroundStyle(.secondary).padding(.bottom, 8)
+    }
+
+    private func lunchBreak(_ s: WorkSnapshot) -> some View {
+        breakCard {
+            LunchBreakIllustration(tint: store.tint)
+            Text("午休时间")
+                .font(.system(size: 30, weight: .semibold, design: .rounded))
+            Text("吃好这一餐，下午再出发。")
+                .font(.subheadline).foregroundStyle(.secondary)
+            Text("午休不计薪，安心休息一会儿。")
+                .font(.caption).foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                Image(systemName: "hourglass")
+                    .font(.system(size: 12)).foregroundStyle(store.tint)
+                    .accessibilityHidden(true)
+                Text("距离午休结束").font(.caption).foregroundStyle(.secondary)
+                Text(duration(s.lunchRemaining))
+                    .font(.system(size: 18, weight: .medium, design: .monospaced))
+                    .monospacedDigit()
             }
+            .padding(.horizontal, 14).padding(.vertical, 8)
+            .background(store.tint.opacity(0.12), in: Capsule())
+            .padding(.top, 2)
+            .padding(.bottom, 14)
+            .accessibilityElement(children: .combine)
         }
+    }
+
+    /// Rest days and lunch breaks share the same quiet, illustration-led card.
+    private func breakCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        VStack(spacing: 16) { content() }
+            .frame(maxWidth: .infinity)
+            .padding(20)
+            .background(store.tint.opacity(0.09), in: RoundedRectangle(cornerRadius: 18))
+            .overlay(alignment: .bottom) {
+                // Keep fallback calendars visible so an estimated day is clear.
+                if store.currentWorkMonth?.isEstimated == true {
+                    Text("日历暂按周一至周五计算")
+                        .font(.caption2).foregroundStyle(.secondary).padding(.bottom, 8)
+                }
+            }
     }
 
 }
@@ -374,20 +408,7 @@ private struct RestDayIllustration: View {
                     .font(.system(size: 42, weight: .light))
                     .foregroundStyle(tint)
                     .offset(y: 10)
-                ForEach(0..<3) { index in
-                    let phase = time * 1.4 + Double(index) * 1.2
-                    Path { path in
-                        path.move(to: CGPoint(x: 5, y: 22))
-                        path.addCurve(to: CGPoint(x: 5, y: 0),
-                                      control1: CGPoint(x: -3, y: 15),
-                                      control2: CGPoint(x: 13, y: 8))
-                    }
-                    .stroke(tint.opacity(0.25 + 0.12 * sin(phase)),
-                            style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
-                    .frame(width: 10, height: 22)
-                    .offset(x: Double(index - 1) * 12 + sin(phase) * 2,
-                            y: -25 - (sin(phase) + 1) * 3)
-                }
+                SteamWisps(tint: tint, time: time)
                 Image(systemName: "sun.max")
                     .font(.system(size: 24, weight: .light))
                     .foregroundStyle(tint.opacity(0.5))
@@ -401,6 +422,83 @@ private struct RestDayIllustration: View {
         .transaction { $0.animation = nil }
         .accessibilityHidden(true)
         .allowsHitTesting(false)
+    }
+}
+
+private struct SteamWisps: View {
+    let tint: Color
+    let time: Double
+
+    var body: some View {
+        ForEach(0..<3) { index in
+            let phase = time * 1.4 + Double(index) * 1.2
+            Path { path in
+                path.move(to: CGPoint(x: 5, y: 22))
+                path.addCurve(to: CGPoint(x: 5, y: 0),
+                              control1: CGPoint(x: -3, y: 15),
+                              control2: CGPoint(x: 13, y: 8))
+            }
+            .stroke(tint.opacity(0.25 + 0.12 * sin(phase)),
+                    style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+            .frame(width: 10, height: 22)
+            .offset(x: Double(index - 1) * 12 + sin(phase) * 2,
+                    y: -25 - (sin(phase) + 1) * 3)
+        }
+    }
+}
+
+private struct LunchBreakIllustration: View {
+    let tint: Color
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        // Same drawing-property animation as the rest-day coffee: never animate layout.
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { context in
+            let time = reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate
+            ZStack {
+                Ellipse()
+                    .fill(tint.opacity(0.08))
+                    .frame(width: 100, height: 12)
+                    .offset(y: 32)
+                BowlShape()
+                    .fill(tint)
+                    .frame(width: 66, height: 34)
+                    .offset(y: 8)
+                ForEach(0..<2) { index in
+                    Capsule()
+                        .fill(tint)
+                        .frame(width: 3, height: 36)
+                        .rotationEffect(.degrees(20), anchor: .bottom)
+                        .offset(x: 18 + Double(index) * 7, y: -13 - Double(index) * 2)
+                }
+                SteamWisps(tint: tint, time: time)
+                Image(systemName: "sun.max")
+                    .font(.system(size: 24, weight: .light))
+                    .foregroundStyle(tint.opacity(0.5))
+                    .rotationEffect(.degrees(reduceMotion ? 0 : sin(time * .pi / 6) * 12))
+                    .scaleEffect(1 + sin(time * .pi / 3) * 0.06)
+                    .offset(x: 105, y: -20)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 90)
+        }
+        .transaction { $0.animation = nil }
+        .accessibilityHidden(true)
+        .allowsHitTesting(false)
+    }
+}
+
+private struct BowlShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let rimY = rect.minY + rect.height * 0.3
+        let radius = rect.width * 0.42
+        path.move(to: CGPoint(x: rect.midX - radius, y: rimY))
+        path.addLine(to: CGPoint(x: rect.midX + radius, y: rimY))
+        path.addArc(center: CGPoint(x: rect.midX, y: rimY), radius: radius,
+                    startAngle: .degrees(0), endAngle: .degrees(180), clockwise: false)
+        path.closeSubpath()
+        return path
     }
 }
 

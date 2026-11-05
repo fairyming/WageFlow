@@ -94,6 +94,10 @@ public struct WorkSnapshot {
     public let earned: Double
     public let progress: Double
     public let remaining: TimeInterval
+    /// True only on a workday while an enabled lunch break is running.
+    public let isLunchBreak: Bool
+    /// Seconds left until the lunch break ends; zero outside the break.
+    public let lunchRemaining: TimeInterval
     public let status: String
 
     public init(settings s: WorkSettings, now: Date = Date(), calendar: Calendar = .current, isWorkday: Bool) {
@@ -105,10 +109,15 @@ public struct WorkSnapshot {
         progress = working && s.valid ? min(1, max(0, (elapsed - lunch) / s.paidMinutes)) : 0
         earned = s.valid ? s.dailyPay * progress : 0
         remaining = working ? max(0, (Double(s.end) - minute) * 60) : 0
+        // A zero-length lunch means the break is disabled, not an all-day break.
+        let onLunchBreak = working && s.valid && s.lunchEnd > s.lunchStart &&
+            minute >= Double(s.lunchStart) && minute < Double(s.lunchEnd)
+        isLunchBreak = onLunchBreak
+        lunchRemaining = onLunchBreak ? max(0, (Double(s.lunchEnd) - minute) * 60) : 0
         if !working { status = "今天休息，好好生活" }
         else if minute < Double(s.start) { status = "还没上班，先喝杯咖啡" }
         else if minute >= Double(s.end) { status = "今日收工，辛苦啦！" }
-        else if minute >= Double(s.lunchStart) && minute < Double(s.lunchEnd) { status = "午休中，给自己充个电" }
+        else if onLunchBreak { status = "午休中，给自己充个电" }
         else { status = "正在赚钱，每一秒都算数" }
     }
 }
