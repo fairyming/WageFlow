@@ -21,6 +21,10 @@ final class SalaryStore: ObservableObject {
            let decoded = try? JSONDecoder().decode(WorkSettings.self, from: data), decoded.valid {
             settings = decoded
         } else { settings = WorkSettings() }
+        // Rewrite saved settings without the retired opacity configuration.
+        if let data = try? JSONEncoder().encode(settings) {
+            UserDefaults.standard.set(data, forKey: "workSettings")
+        }
         calendarSubscription = holidays.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
         }
@@ -92,6 +96,7 @@ final class SalaryAppDelegate: NSObject, NSApplicationDelegate {
     private var timer: Timer?
     private var calendarTimer: Timer?
     private var clickMonitor: Any?
+    private var appearanceSubscription: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Keep the item alive and use a native image instead of a TimelineView label.
@@ -108,6 +113,10 @@ final class SalaryAppDelegate: NSObject, NSApplicationDelegate {
             button.setAccessibilityLabel("WageFlow，点击查看今日收入")
         }
         statusItem = item
+        appearanceSubscription = store.$settings.sink { [weak self] settings in
+            self?.desktopWindow?.alphaValue = settings.dashboardOpacity
+            self?.popover.contentViewController?.view.window?.alphaValue = settings.dashboardOpacity
+        }
         popover.behavior = .transient
         popover.contentViewController = NSHostingController(rootView:
             Dashboard(store: store,
@@ -140,6 +149,7 @@ final class SalaryAppDelegate: NSObject, NSApplicationDelegate {
         } else {
             NSApp.activate(ignoringOtherApps: true)
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            popover.contentViewController?.view.window?.alphaValue = store.settings.dashboardOpacity
             popover.contentViewController?.view.window?.makeKey()
         }
     }
@@ -171,6 +181,7 @@ final class SalaryAppDelegate: NSObject, NSApplicationDelegate {
             desktopWindow = window
         }
         NSApp.activate(ignoringOtherApps: true)
+        desktopWindow?.alphaValue = store.settings.dashboardOpacity
         desktopWindow?.makeKeyAndOrderFront(nil)
     }
 

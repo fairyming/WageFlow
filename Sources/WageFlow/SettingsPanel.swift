@@ -132,7 +132,9 @@ struct SettingsPanel: View {
                         calendarCard
                         previewCard
                     } else {
+                        appearancePreview
                         themeCard
+                        opacityCard
                     }
                 }.padding(24)
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -268,14 +270,37 @@ struct SettingsPanel: View {
         return "每日计薪 \(paid) 小时 · 在岗 \(span) 小时"
     }
 
+    private var appearancePreview: some View {
+        card("看板预览", icon: "eye") {
+            DashboardPreview(theme: WorkTheme.named(editor.draft.theme))
+                .opacity(editor.draft.dashboardOpacity)
+        }
+    }
+
     private var themeCard: some View {
         card("主题", icon: "paintpalette") {
-            DashboardPreview(theme: WorkTheme.named(editor.draft.theme))
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4), spacing: 10) {
                 ForEach(WorkTheme.all) { theme in
                     swatch(theme)
                 }
             }
+        }
+    }
+
+    private var opacityCard: some View {
+        card("透明度", icon: "circle.lefthalf.filled") {
+            HStack {
+                Text("透明度")
+                Spacer()
+                Text(editor.draft.dashboardTransparency, format: .percent.precision(.fractionLength(0)))
+                    .monospacedDigit().foregroundStyle(.secondary)
+            }
+            Slider(value: $editor.draft.dashboardTransparency, in: 0...0.4, step: 0.01) {
+                Text("透明度")
+            }
+            .labelsHidden()
+            Text("保存后应用于菜单栏看板和桌面看板，0% 为完全不透明。")
+                .font(.caption).foregroundStyle(.secondary)
         }
     }
 

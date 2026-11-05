@@ -16,12 +16,14 @@ public struct WorkSettings: Codable, Equatable {
     public var commute: Double = 60
     public var dailyCost: Double = 30
     public var theme: String = "薄荷"
+    public var dashboardTransparency: Double = 0
+    public var dashboardOpacity: Double { 1 - dashboardTransparency }
     public var hideIncome: Bool = false
     public init() {}
 
     private enum CodingKeys: String, CodingKey {
         case income, cycle, workdays, start, end, lunchStart, lunchEnd
-        case workdayOverrides, commute, dailyCost, theme, hideIncome
+        case workdayOverrides, commute, dailyCost, theme, hideIncome, dashboardTransparency
     }
 
     private enum LegacyCodingKeys: String, CodingKey { case workdayMode }
@@ -44,6 +46,8 @@ public struct WorkSettings: Codable, Equatable {
         commute = try c.decodeIfPresent(Double.self, forKey: .commute) ?? commute
         dailyCost = try c.decodeIfPresent(Double.self, forKey: .dailyCost) ?? dailyCost
         theme = try c.decodeIfPresent(String.self, forKey: .theme) ?? theme
+        // Ignore the retired opacity key so existing appearance caches reset to opaque.
+        dashboardTransparency = try c.decodeIfPresent(Double.self, forKey: .dashboardTransparency) ?? 0
         hideIncome = try c.decodeIfPresent(Bool.self, forKey: .hideIncome) ?? hideIncome
     }
 
@@ -51,7 +55,8 @@ public struct WorkSettings: Codable, Equatable {
         income.isFinite && income >= 0 && workdays.isFinite && workdays >= 0 &&
         start >= 0 && end <= 1440 && end > start && lunchStart >= start &&
         lunchEnd >= lunchStart && lunchEnd <= end && paidMinutes > 0 &&
-        commute.isFinite && commute >= 0 && dailyCost.isFinite && dailyCost >= 0
+        commute.isFinite && commute >= 0 && dailyCost.isFinite && dailyCost >= 0 &&
+        dashboardTransparency.isFinite && (0...0.4).contains(dashboardTransparency)
     }
     public var paidMinutes: Double { Double(end - start - (lunchEnd - lunchStart)) }
     public var dailyPay: Double {

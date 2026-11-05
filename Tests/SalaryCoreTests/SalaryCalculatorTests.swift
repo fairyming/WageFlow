@@ -12,6 +12,7 @@ struct SalaryCalculatorTests {
         suite.testWeekendHasNoEarnings()
         suite.testCyclesAndEffectivePay()
         suite.testInvalidSchedules()
+        suite.testAppearanceSettings()
         checkHolidayCalendars()
         checkWorkCalendarSelection()
         checkTimeCode()
@@ -22,6 +23,20 @@ struct SalaryCalculatorTests {
         var c = Calendar(identifier: .gregorian)
         c.timeZone = TimeZone(secondsFromGMT: 0)!
         return c
+    }
+    func testAppearanceSettings() {
+        let legacy = try! JSONDecoder().decode(WorkSettings.self, from: Data("{}".utf8))
+        precondition(legacy.dashboardOpacity == 1)
+        let migrated = try! JSONDecoder().decode(WorkSettings.self, from: Data(#"{"dashboardOpacity":0.45,"income":12345}"#.utf8))
+        precondition(migrated.dashboardOpacity == 1 && migrated.income == 12345)
+        var settings = legacy
+        settings.dashboardTransparency = 0.4
+        let restored = try! JSONDecoder().decode(WorkSettings.self, from: JSONEncoder().encode(settings))
+        precondition(restored == settings && restored.valid)
+        for invalid in [-0.01, 0.41, 1.01, Double.nan, Double.infinity] {
+            settings.dashboardTransparency = invalid
+            precondition(!settings.valid)
+        }
     }
     private func snapshot(_ hour: Int, _ minute: Int = 0, day: Int = 2) -> WorkSnapshot {
         let date = calendar.date(from: DateComponents(year: 2026, month: 11, day: day, hour: hour, minute: minute))!

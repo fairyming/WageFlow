@@ -41,7 +41,7 @@ struct PreviewRenderer {
         previewDate = Calendar(identifier: .gregorian).date(from:
             DateComponents(year: 2026, month: 11, day: 7, hour: 11, minute: 30))!
         try render(Dashboard(store: store), name: "dashboard-restday", width: 400, height: 545)
-        try render(SettingsPanel(store: store), name: "settings-pay", width: 560, height: 1445)
+        try render(SettingsPanel(store: store), name: "settings-pay", width: 560, height: 600)
         try render(SettingsPanel(store: store, previewPage: .appearance), name: "settings-appearance", width: 560, height: 600)
     }
 
