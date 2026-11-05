@@ -34,13 +34,13 @@ struct PreviewRenderer {
         try render(Dashboard(store: store), name: "dashboard-workday", width: 400, height: 538)
         previewDate = Calendar(identifier: .gregorian).date(from:
             DateComponents(year: 2026, month: 11, day: 4, hour: 12, minute: 30))!
-        try render(Dashboard(store: store), name: "dashboard-lunch", width: 400, height: 472)
+        try render(Dashboard(store: store), name: "dashboard-lunch", width: 400, height: 443)
         previewDate = Calendar(identifier: .gregorian).date(from:
             DateComponents(year: 2026, month: 11, day: 7, hour: 11, minute: 30))!
         try render(Dashboard(store: store), name: "dashboard-restday", width: 400, height: 430)
         for (page, name, height) in [(0, "settings-salary", 650.0),
                                      (1, "settings-schedule", 1030.0),
-                                     (2, "settings-appearance", 650.0)] {
+                                     (2, "settings-appearance", 690.0)] {
             try render(SettingsPanel(store: store, previewPage: page), name: name, width: 560, height: height)
         }
     }

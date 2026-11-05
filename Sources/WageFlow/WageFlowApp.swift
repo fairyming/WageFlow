@@ -64,13 +64,7 @@ final class SalaryStore: ObservableObject {
         return WorkSnapshot(settings: effective, now: date, calendar: calendar,
                             isWorkday: month?.days.first(where: { $0.day == c.day })?.isWorkday ?? false)
     }
-    var tint: Color {
-        switch settings.theme {
-        case "落日": return .orange
-        case "鸢尾": return .purple
-        default: return Color(red: 0.13, green: 0.68, blue: 0.52)
-        }
-    }
+    var tint: Color { WorkTheme.named(settings.theme).color }
 }
 
 @main
@@ -187,7 +181,7 @@ final class SalaryAppDelegate: NSObject, NSApplicationDelegate {
             window.title = "WageFlow 设置"
             window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
             window.isReleasedWhenClosed = false
-            window.setContentSize(NSSize(width: 560, height: 650))
+            window.setContentSize(NSSize(width: 560, height: 690))
             window.contentMinSize = NSSize(width: 540, height: 600)
             window.setFrameAutosaveName("WageFlowSettings")
             window.center()
@@ -355,8 +349,6 @@ struct Dashboard: View {
                 .font(.system(size: 30, weight: .semibold, design: .rounded))
             Text("吃好这一餐，下午再出发。")
                 .font(.subheadline).foregroundStyle(.secondary)
-            Text("午休不计薪，安心休息一会儿。")
-                .font(.caption).foregroundStyle(.secondary)
             HStack(spacing: 8) {
                 Image(systemName: "hourglass")
                     .font(.system(size: 12)).foregroundStyle(store.tint)

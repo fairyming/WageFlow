@@ -215,10 +215,10 @@ struct SettingsPanel: View {
     private var appearance: some View {
         VStack(alignment: .leading, spacing: 18) {
             card("看板配色", icon: "paintpalette") {
-                HStack(spacing: 12) {
-                    theme("薄荷", color: Color(red: 0.13, green: 0.68, blue: 0.52))
-                    theme("落日", color: .orange)
-                    theme("鸢尾", color: .purple)
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4), spacing: 10) {
+                    ForEach(WorkTheme.all) { theme in
+                        swatch(theme)
+                    }
                 }
                 Text("配色将在保存后应用于看板。").font(.caption).foregroundStyle(.secondary)
             }
@@ -233,19 +233,28 @@ struct SettingsPanel: View {
         }
     }
 
-    private func theme(_ title: String, color: Color) -> some View {
-        Button { editor.draft.theme = title } label: {
-            VStack(spacing: 10) {
-                RoundedRectangle(cornerRadius: 8).fill(color.opacity(0.15))
-                    .frame(height: 54).overlay(Image(systemName: "yensign.circle.fill").font(.title2).foregroundStyle(color))
-                HStack {
-                    Text(title)
-                    Image(systemName: editor.draft.theme == title ? "checkmark.circle.fill" : "circle").foregroundStyle(color)
-                }.font(.callout)
-            }.padding(10).frame(maxWidth: .infinity)
+    private func swatch(_ theme: WorkTheme) -> some View {
+        // Unknown stored names fall back to the default accent, so highlight it too.
+        let selected = WorkTheme.named(editor.draft.theme) == theme
+        return Button { editor.draft.theme = theme.name } label: {
+            VStack(spacing: 8) {
+                RoundedRectangle(cornerRadius: 8).fill(theme.color.opacity(0.15))
+                    .frame(height: 44)
+                    .overlay(Image(systemName: "yensign.circle.fill").font(.title3).foregroundStyle(theme.color))
+                HStack(spacing: 4) {
+                    Text(theme.name).font(.callout).lineLimit(1)
+                    Spacer(minLength: 2)
+                    Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                        .font(.caption).foregroundStyle(selected ? theme.color : .secondary.opacity(0.6))
+                }
+            }.padding(8).frame(maxWidth: .infinity)
                 .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 12))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(editor.draft.theme == title ? color : .clear, lineWidth: 2))
-        }.buttonStyle(.plain).accessibilityValue(editor.draft.theme == title ? "已选择" : "未选择")
+                .overlay(RoundedRectangle(cornerRadius: 12)
+                    .stroke(selected ? theme.color : .secondary.opacity(0.15), lineWidth: selected ? 2 : 1))
+        }.buttonStyle(.plain)
+            .help("\(theme.name)配色")
+            .accessibilityLabel("\(theme.name)配色")
+            .accessibilityValue(selected ? "已选择" : "未选择")
     }
 
     private func input(_ title: String, text: Binding<String>, unit: String) -> some View {
